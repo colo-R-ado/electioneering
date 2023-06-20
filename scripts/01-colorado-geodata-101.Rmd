@@ -1,0 +1,173 @@
+---
+title: "Colorado Geodata 101"
+subtitle: "Shape Up"
+author: "[@colo_R_ado](https://twitter.com/colo_R_ado)"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+knit: (function(inputFile, encoding) {rmarkdown::render(inputFile, output_dir = paste0(dirname(getwd()), "/output/"))})
+header-includes:
+  - \geometry{paperwidth=200mm, paperheight=2300mm}
+  - \color{black}
+  - \usepackage{fontspec, lipsum, float}
+  - \setmainfont{SF Pro Text}
+  - \pagenumbering{gobble}
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    highlight: zenburn
+    fig_caption: true
+urlcolor: blue
+---
+
+```{r housekeeping, include=FALSE}
+library(dplyr)
+library(mgcv)
+library(tibble)
+library(tidyr)
+```
+
+# Intro
+
+Colorado voted for Republican presidential candidates seven out of eight times between 1976 and 2004. It's been a long 20 years. Anyone who grew up here through the 90s knows it's seen a serious degradation in its quality of life^[1,](https://www.denver7.com/news/360/whats-behind-the-dramatic-rise-in-colorado-traffic-deaths-the-stats-trends-and-what-needs-to-change)^^[2,](https://www.denverpost.com/2021/09/26/fentanyl-deaths-colorado/)^^[3,](https://coloradonewsline.com/2021/12/11/increase-in-colorados-property-crime-rate-bucks-national-trend-report-says/)^^[4,](https://www.axios.com/local/denver/2022/02/08/colorado-homeless-problem-biggest-jump)^^[5](https://kdvr.com/news/local/why-did-goodwills-in-colorado-close-all-dressing-rooms/)^ (more on that [later](https://twitter.com/colo_R_ado/status/1668743445677047808?s=20)). Plus our Democrats are super annoying: They lack the pedigree of, say, California or Washington state progressives so they try to overcompensate with the most fever swamp, clown world, unserious governance imaginable^[1,](https://apnews.com/article/elections-colorado-voting-presidential-voter-registration-440a78fff21bfb75d413c69b0c0f3c61#)^^[2,](https://leg.colorado.gov/bills/hb23-1057)^^[3,](https://leg.colorado.gov/content/noncitizen-driver-licenses-sb-13%E2%80%91251)^^[4,](https://gazette.com/opinion/column-legislators-grapple-with-indecent-exposure-bill-stovall/article_34a374a6-edd0-11ed-9d64-5f36e0098e5e.html)^^[5](https://coloradosun.com/2022/11/18/renaming-mount-evans-2/)^. They also seem to be disproportionately maladjusted individuals from the Midwest. But I digress.
+
+The first step back towards a more purplish Colorado is understanding what's gone wrong. I'll examine some hypotheses (Trump antipathy, single white women, fertility rates, illegal immigration, drug legalization and so on) in depth over the course of this little series. But let's walk before we run.
+
+# Methods
+
+The first order of business is collecting obvious data for analysis. Fortunately, Joe Biden hasn't yet managed to destroy the US Census machinery so we'll start there given its relative ease of access. Census data are organized hierarchically:
+
+```{r hierarhcy, echo=F, fig.align="center", out.width="100%", fig.cap="Census Data Hierarchy"}
+knitr::include_graphics(here::here("misc", "census-hierarchy.png"))
+```
+
+The census is famously conducted every 10 years at the *census block* level of the hierarchy. The census is intended to be exhaustive (i.e. non-sampled) and doesn't collect much information past population for districting purposes. What's most relevant for political analysis are *[block groups](https://www.census.gov/programs-surveys/acs/geography-acs/areas-published.html#par_textimage_7)*, which are the most granular geographical unit available for the sampled Five Year [American Community Survey (ACS)](https://www.bls.gov/lau/acsqa.htm) as well as *[voting districts](https://www2.census.gov/geo/pdfs/reference/GARM/Ch14GARM.pdf)* which map to voting precincts. Block group survey data are accessible through the official census [website](https://data.census.gov/) or through [its API](https://www.census.gov/data/developers/data-sets.html).
+
+```{r census, echo=F, fig.align="center", out.width="100%", fig.cap="Census Geographies"}
+knitr::include_graphics(here::here("misc", "census-tables.png"))
+```
+
+Block groups and voting districts do not perfectly align, so one valuable exercise is mapping the former to the latter by calculating relative overlap between them and weighing variables by that overlap. For example, a voting district comprised of 80% of an \$90,000 per capita income block group and 20% of a \$60,000 per capita income block group would have an approximate per capita income of \$84,000. This isn't too much of a stretch to make since block groups are largely homogeneous geographical units where most citizens therein are similarly situated economically and sociologically.
+
+Relating demographic results at the block group level to election results at the voting district (i.e. precinct) level is a good first step in understanding the dynamics behind the GOP's slack in Colorado. We'll build our dataset with publicly-available [shapefiles](https://cran.r-project.org/web/packages/tigris/tigris.pdf), [census data](https://walker-data.com/tidycensus/) and [election results](https://www.sos.state.co.us/pubs/elections/resultsData.html). This dataset can easily be extended to include proprietary, third party and experimental data to refine electioneering tactics. But my hunch is the contours of the GOP's situation will become pretty clear with a little creativity and due diligence here.
+
+# Results
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's zoom into that old stalwart, El Paso County. You can observe its boundaries from its shapefile below:
+
+```{r county, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="El Paso County"}
+knitr::include_graphics(here::here("output", "m01-county.png"))
+```
+
+Keep in mind the hierarchy mentioned earlier. Here you can see census tracts are subsumed within a county . . .
+
+```{r tract, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Census Tracts Nested Within El Paso County", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m02-tracts.png"))
+```
+
+. . . and block groups subsumed within census tracts. This is the lowest level of useful demographic data produced by the ACS.
+
+```{r blocks, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Block Groups Nested Within Census Tracts", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m03-block-groups.png"))
+```
+
+One bit of information collected by block group in the ACS is per capita income in the previous 12 months.
+
+```{r income, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Per Capita Income Mapped to Block Groups", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m10-el-paso-income.png"))
+```
+
+It appears El Paso County's higher-earning citizens live along the west-southwest and north sides of town. Let's now look at El Paso County's voting districts:
+
+```{r voting, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Voting Districts Nested Within El Paso County", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m04-voting-districts.png"))
+```
+
+Here you can observe the disparities between the block group and voting district boundaries. The most granular election results are reported at the voting district level:
+
+```{r e20, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="2020 Election Results Mapped to Voting Districts", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m11-el-paso-e20.png"))
+```
+
+Predictably, there's more red than blue in El Paso County and the blue is concentrated near Colorado College and the weirdos in Manitou. The trick for us will be relating Figure 6 and Figure 8.
+
+```{r overlap, echo=F, fig.align="center", results="asis", out.width="49%", fig.cap="Block Groups Rollup to Voting District", fig.show="hold", fig.pos="H"}
+knitr::include_graphics(
+  here::here(
+    "output", 
+    c("m07-example-voting-districts.png", "m08-example-block-groups.png", "m09-example-overlap.png")
+  )
+)
+```
+
+As an example, let's zoom in on one particular voting district in the northern part of the county. The purple section in the top left map delineates one voting district. The green section in the top right map delineates the three block groups that intersect with this voting district. The orange section in the lower map highlights the overlap between the voting district and block groups. You can observe the the voting district is primarily comprised (\~70%) by the easternmost block group with the remainder split pretty evenly between the other two.
+
+```{r t01, echo=F}
+read.csv("../output/illustrative-vtd.csv") %>%
+  mutate(
+    area = scales::comma(area)
+  ) %>%
+  knitr::kable(
+    format = "latex",
+    col.names = c(
+      "State",
+      "County",
+      "Voting District",
+      "Block Group",
+      "Block Group Name",
+      "Overlap Area (square meters)",
+      "Overlap Area",
+      "Income",
+      "Weighted Income",
+      "GOP"
+    ),
+    align = rep("c", ncol(.)),
+    escape = TRUE,
+    booktabs = TRUE,
+    caption = "Voting District Partitioned by Block Groups"
+  ) %>%
+  kableExtra::kable_styling(
+    latex_options = c("scale_down", "HOLD_position")
+  )
+
+```
+
+Recall that we have data on the per capita income for the three block groups and election results for the voting district. We can generate a 1:1 mapping between the two by weighing the per capita income by the overlap area percentages. So, we'd tabulate a weighted per capita income of \$57,261 and 69% GOP representation for voting district 41316 in El Paso County.
+
+This is a nice Rosetta Stone for relating election results to demographics. For instance, here are some scatter plots and smooth regression curves for counties along the Front Range:
+
+```{r incomevgop, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Per Capita Income and \\% GOP", fig.pos="H"}
+knitr::include_graphics(here::here("output", "p01.png"))
+```
+
+Huh, the appears to be a similar little "hitch" profile in GOP share of vote as well proceed up the per capita income curve. Per capita incomes can differ significantly across counties (contrast Boulder with Pueblo), so let's normalize this view a bit by comparing across per capita income percentiles within counties:
+
+```{r incomevgop2, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="Normalized Per Capita Income and \\% GOP", fig.pos="H"}
+knitr::include_graphics(here::here("output", "p02.png"))
+```
+
+Nice. The GOP share of vote generally appears to have a pretty clear linear relationship to per capita income until it hits a kind of plateau at around the 40th to 50th percentile regardless of county. The positive upward trend then generally appears to pick up again somewhere above the 70th to 80th percentile. Notice the profiles of GOP support by income can appear similar across counties despite the intercepts differing quite a bit (e.g. Denver versus Douglas). It may behoove us to better understand why GOP support stalls out for the population between the county-indexed 40th and 80th percentiles.
+
+# Discussion
+
+Everyone has ideas about what ails the GOP in Colorado. A lot of them are plausible! But straightforward data analysis is the opening gambit for any plan of action to change our stars. This laddering framework between the different levels of demographic and election data is a good start to understanding the current dynamic. If nothing else, losing is a lot more palatable if you know why. But landslide losses against our sad sack Dem opponents are just demoralizing. Soon enough they'll be rolling out their own John Fetterman and we'll have to suffer the same embarrassment that Pennsylvanians do every time he, uh, speaks. Colorado deserves serious conservative policy. This is a recent blue turn and there's no doubt that patient, strategic application of smart empiricism to our electioneering efforts can bear fruit.
+
+Next, we'll do a review of Colorado's electoral history. Stay tuned!
+
+# Appendix
+
+ZCTAs (i.e. zip codes) also have a role to play, especially when talking about political advertising. A figure of El Paso County zip codes are included here for completeness.
+
+```{r zips, echo=F, fig.align="center", results="asis", out.width="100%", fig.cap="ZCTAs Transversing El Paso County", fig.pos="H"}
+knitr::include_graphics(here::here("output", "m05-zips.png"))
+```
+
+\vspace*{2cm}
+
+\begingroup
+  \centering
+![](../misc/co-flag.png){width=10%}
+  \par
+\endgroup
