@@ -586,3 +586,9 @@ ggsave(
   height = 18,
   dpi = 300
 )
+
+# Push geofile to OSF ---------------------------------------------------------
+
+saveRDS(b2v, file = paste0(tempdir(), "/b2v.rds"))
+
+osf_upload(osf_retrieve_node("m5qyk"), paste0(tempdir(), "/b2v.rds"))
