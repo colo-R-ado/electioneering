@@ -5,7 +5,7 @@ author: "[@colo_R_ado](https://twitter.com/colo_R_ado)"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 knit: (function(inputFile, encoding) {rmarkdown::render(inputFile, output_dir = paste0(dirname(getwd()), "/output/"))})
 header-includes:
-  - \geometry{paperwidth=200mm, paperheight=2300mm}
+  - \geometry{paperwidth=200mm}
   - \color{black}
   - \usepackage{fontspec, lipsum, float}
   - \setmainfont{SF Pro Text}
